@@ -43,7 +43,7 @@ import numpy as np
 # import tensorflow as tf
 from sklearn.metrics import classification_report
 from nncodec.framework.applications.utils.metrics import get_topk_accuracy_per_batch
-from nncodec.framework.applications.models.tokenizer import Tokenizer
+# from nncodec.framework.applications.models.tokenizer import Tokenizer
 from nncodec.nnc_core import nnr_model
 from contextlib import nullcontext
 import re

@@ -270,47 +270,42 @@ def inference_based_qp_opt(
         model_info,
         model_executer,
         approx_data,
-        param_opt,
-        cabac_unary_length_minus1,
+        enc_info,
         verbose,
     ):
     approx_data_qp = approx(
         approx_info,
         model_info,
         approx_data,
-        param_opt,
+        enc_info,
     )
     rec_approx_data_qp = copy.deepcopy(approx_data_qp)
     rec(
         rec_approx_data_qp,
     )
-    
+
     ##encode
     start = timer()
-    __print_output_line("\tIOQ: PROCESSING QP FOR ALL TENSORS...", verbose=verbose) 
-    enc_info_qp = {
-        "cabac_unary_length_minus1" : cabac_unary_length_minus1,
-        "param_opt_flag" : param_opt,
-    }
-    bitstream_qp = nnc_core.coder.encode(enc_info_qp, model_info, approx_data_qp)
+    __print_output_line("\tIOQ: PROCESSING QP FOR ALL TENSORS...", verbose=verbose)
+    bitstream_qp, oob = nnc_core.coder.encode(enc_info, model_info, approx_data_qp)
 
     acc_qp = model_executer.eval_model(
         rec_approx_data_qp["parameters"],
         False,
     )
-    
+
     refBSSize = len(bitstream_qp)
-    refAcc = acc_qp[0]
+    refAcc = list(acc_qp.values())[0]
 
     bestCost = 0.0
     end = timer()
-    __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose) 
+    __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)
 
 
     ############################ eval with QP-1
     start = timer()
-    __print_output_line("\tIOQ: PROCESSING QP-1 FOR ALL TENSORS...", verbose=verbose) 
- 
+    __print_output_line("\tIOQ: PROCESSING QP-1 FOR ALL TENSORS...", verbose=verbose)
+
     approx_info_qp = copy.deepcopy(approx_info)
 
     for p in approx_info_qp["qp"].keys():
@@ -321,19 +316,15 @@ def inference_based_qp_opt(
         approx_info_qp,
         model_info,
         approx_data,
-        param_opt,
+        enc_info,
     )
     rec_approx_data_qp = copy.deepcopy(approx_data_qp)
     rec(
         rec_approx_data_qp,
     )
-    
+
     ##encode
-    enc_info_qp = {
-        "cabac_unary_length_minus1" : cabac_unary_length_minus1,
-        "param_opt_flag" : param_opt,
-    }
-    bitstream_qp = nnc_core.coder.encode(enc_info_qp, model_info, approx_data_qp)
+    bitstream_qp, oob = nnc_core.coder.encode(enc_info, model_info, approx_data_qp)
     ##eval
     acc_qp = model_executer.eval_model(
         rec_approx_data_qp["parameters"],
@@ -341,20 +332,20 @@ def inference_based_qp_opt(
     )
 
     currBSSize = len(bitstream_qp)
-    currAcc = acc_qp[0]
+    currAcc = list(acc_qp.values())[0]
 
     diffBR = currBSSize - refBSSize
     diffAcc = refAcc - currAcc
 
-    lambdaM1 = -diffAcc/diffBR 
+    lambdaM1 = -diffAcc/diffBR
 
     end = timer()
-    __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)  
+    __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)
 
 
     ############################### eval with QP+1
     start = timer()
-    __print_output_line("\tIOQ: PROCESSING QP+1 FOR ALL TENSORS...", verbose=verbose) 
+    __print_output_line("\tIOQ: PROCESSING QP+1 FOR ALL TENSORS...", verbose=verbose)
 
     approx_info_qp = copy.deepcopy(approx_info)
 
@@ -366,19 +357,15 @@ def inference_based_qp_opt(
         approx_info_qp,
         model_info,
         approx_data,
-        param_opt,
+        enc_info,
     )
     rec_approx_data_qp = copy.deepcopy(approx_data_qp)
     rec(
         rec_approx_data_qp,
     )
-    
+
     ##encode
-    enc_info_qp = {
-        "cabac_unary_length_minus1" : cabac_unary_length_minus1,
-        "param_opt_flag" : param_opt,
-    }
-    bitstream_qp = nnc_core.coder.encode(enc_info_qp, model_info, approx_data_qp)
+    bitstream_qp, oob = nnc_core.coder.encode(enc_info, model_info, approx_data_qp)
     ##eval
     acc_qp = model_executer.eval_model(
         rec_approx_data_qp["parameters"],
@@ -386,15 +373,15 @@ def inference_based_qp_opt(
     )
 
     currBSSize = len(bitstream_qp)
-    currAcc = acc_qp[0]
+    currAcc = list(acc_qp.values())[0]
 
     diffBR = currBSSize - refBSSize
     diffAcc = refAcc - currAcc
 
     lambdaP1 = -diffAcc/diffBR
-    
+
     end = timer()
-    __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose) 
+    __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)
 
     ################################
 
@@ -404,9 +391,9 @@ def inference_based_qp_opt(
     for p in rec_approx_data_qp["parameters"]:
         if model_info["parameter_type"][p] in nnc_core.nnr_model.W_TYPES:
             mapParamToSize.append([p , np.size(approx_data_qp["parameters"][p])])
-    
-    mapParamToSize.sort(key = lambda x: x[1],reverse=True) 
-    
+
+    mapParamToSize.sort(key = lambda x: x[1],reverse=True)
+
     setNeg = [-4, -3, -2, -1 ]
     setPos = [1, 2, 3, 4 ]
 
@@ -426,30 +413,25 @@ def inference_based_qp_opt(
                     approx_info_qp_curr,
                     model_info,
                     approx_data,
-                    param_opt,
+                    enc_info,
                 )
-                    
+
                 rec_approx_data_qp = copy.deepcopy(approx_data_qp)
                 rec(
                     rec_approx_data_qp,
                 )
-                
+
                 ##encode
-                enc_info_qp = {
-                    "cabac_unary_length_minus1" : cabac_unary_length_minus1,
-                    "param_opt_flag" : param_opt,
-                }
-                
-                bitstream_qp = nnc_core.coder.encode(enc_info_qp, model_info, approx_data_qp)
-            
+                bitstream_qp, oob = nnc_core.coder.encode(enc_info, model_info, approx_data_qp)
+
                 ##eval
                 acc_qp = model_executer.eval_model(
                     rec_approx_data_qp["parameters"],
                     False,
                 )
-                
+
                 currBSSize = len(bitstream_qp)
-                currAcc = acc_qp[0]
+                currAcc = list(acc_qp.values())[0]
 
                 diffBR = currBSSize - refBSSize
                 diffAcc = refAcc - currAcc

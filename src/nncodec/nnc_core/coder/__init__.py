@@ -218,7 +218,8 @@ def encode(enc_info, model_info, approx_data, approx_param_base=None, tool_if=No
     mps = syntax_compiler.compile_mps(approx_data,
                                        "topology_storage_format" in model_info,
                                        enc_info.get("general_profile_idc", 0),
-                                       enc_info.get("mps_parent_signalling_enabled_flag", 0)
+                                       enc_info.get("mps_parent_signalling_enabled_flag", 0),
+                                       enc_info.get("pre_signalling", 0)
                                       )
     lps = None
     bs_mps = hls.encode_nnr_unit_with_size_dummy( mps )
@@ -888,7 +889,7 @@ def __decode_nnr_unit(reader, bitstream, bytes_read, ndu_start, mps, lps, tpl, m
 
     return bytes_ndu, mps, lps, tpl, model_info, approx_data, nnr_ndu_decoded, decoded_dc_tensorG
 
-def decode(bitstream, model_info, oob_dict = None , tool_if=None, hls_stats = {}, approx_param_base=None, update_base_param=False):
+def decode(bitstream, model_info, oob_dict = None , tool_if=None, hls_stats = {}, approx_param_base=None, update_base_param=False, return_hls=False):
     assert isinstance(bitstream, (bytearray, bytes))
 
     if not isinstance(bitstream, bytearray):
@@ -944,6 +945,8 @@ def decode(bitstream, model_info, oob_dict = None , tool_if=None, hls_stats = {}
 
         bytes_read[0] += bytes_ndu
 
+    if return_hls:
+        approx_data["dec_hls"] = {"mps": mps, "lps": lps, "tpl": tpl}
     return approx_data
 
 

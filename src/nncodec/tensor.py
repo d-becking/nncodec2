@@ -58,9 +58,11 @@ nncargs = {'approx_method': 'uniform',
             'sparsity': 0.0,
             'struct_spars_factor': 0.9,
             'tca': False,
+            'pre_signalling': False,
             'tensor_id': '0',
             'tensor_path': None,
             'use_dq': True,
+            'param_opt': True,
             'qp_per_tensor': None,  # dict containing one qp value per parameter {Tensor1: -32, Tensor2: -40}
             'verbose': True
            }
@@ -100,8 +102,10 @@ def encode(tensor, args=None, approx_param_base=None, quantize_only=False):
                       qp_per_tensor=args["qp_per_tensor"],
                       use_dq=args["use_dq"],
                       opt_qp=args["opt_qp"],
+                      param_opt=args["param_opt"],
                       row_skipping=args["row_skipping"],
                       tca=args["tca"],
+                      pre_signalling=args["pre_signalling"],
                       verbose=args["verbose"],
                       return_bitstream=True,
                       approx_param_base=approx_param_base,
@@ -112,7 +116,11 @@ def encode(tensor, args=None, approx_param_base=None, quantize_only=False):
                       )
     return bs
 
-def decode(bitstream, tensor_id='0', approx_param_base=None):
+def decode(bitstream, tensor_id='0', approx_param_base=None, return_hls=False):
     update_base = approx_param_base is not None
-    dec_nnc_tensor = nnc.decompress(bitstream, approx_param_base=approx_param_base, update_base_param=update_base)
-    return dec_nnc_tensor[tensor_id]
+    dec_nnc_tensor = nnc.decompress(bitstream, approx_param_base=approx_param_base, update_base_param=update_base, return_hls=return_hls)
+
+    if return_hls:
+        return dec_nnc_tensor[0][tensor_id], dec_nnc_tensor[1]
+    else:
+        return dec_nnc_tensor[tensor_id]

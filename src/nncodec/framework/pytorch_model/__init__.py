@@ -46,7 +46,6 @@ from nncodec.framework.use_case_init import use_cases
 from nncodec.framework.applications.utils import evaluation, transforms
 import torch
 from collections import OrderedDict
-import wandb
 
 
 def is_pyt_model( model_object ):
@@ -670,6 +669,8 @@ class ImageClassificationPytorchModelExecuter(nnc_core.nnr_model.ModelExecute):
             verbose=False,
             wandb_logging=False
     ):
+        if wandb_logging:
+            import wandb
         torch.set_num_threads(1)
         verbose = 1 if (verbose & 1) else 0
 

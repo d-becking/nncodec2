@@ -312,6 +312,7 @@ def compress(
     fine_tune=False,
     row_skipping=False,
     tca=False,
+    pre_signalling=False,
     block_id_and_param_type=None,
     model=None,
     model_executer=None,
@@ -414,6 +415,7 @@ def compress(
         enc_info["device_id"] = device_id
         enc_info["temporal_context_modeling_flag"] = 1 if tca else 0
         enc_info["row_skip_enabled_flag"] = 1 if row_skipping else 0
+        enc_info["pre_signalling"] = 1 if pre_signalling else 0
         # enc_info["nnr_pt_block_enabled_flag"] = nnr_pt_block_enabled_flag
     else:
         enc_info["mps_parent_signalling_enabled_flag"] = 0
@@ -433,8 +435,7 @@ def compress(
             nnc_mdl.model_info,
             model_executer,
             approx_data,
-            enc_info["param_opt_flag"],
-            enc_info["cabac_unary_length_minus1"],
+            enc_info,
             verbose=verbose,
         )
         end = timer()
@@ -508,7 +509,8 @@ def compress(
 
 def decompress( bitstream_or_path, 
                 block_id_and_param_type=None, 
-                return_model_information=False, 
+                return_model_information=False,
+                return_hls=False,
                 verbose=False,
                 reconstruct_lsa=False,
                 reconstruct_bnf=False,
@@ -564,7 +566,8 @@ def decompress( bitstream_or_path,
         approx_param_base = loaded_internal_states['approx_param_base']
 
     dec_approx_data = nnc_core.coder.decode(bitstream, dec_model_info, hls_stats=hls_bytes, oob_dict=oob_dict,
-                                            approx_param_base=approx_param_base, update_base_param=update_base_param)
+                                            approx_param_base=approx_param_base, update_base_param=update_base_param,
+                                            return_hls=return_hls)
 
     if internal_states_path and approx_param_base["parameters"]:
         np.savez(f"{_int_states_path}", **loaded_internal_states)
@@ -590,6 +593,8 @@ def decompress( bitstream_or_path,
         model_information["performance_map_flags"]   = dec_model_info["performance_map_flags"]
 
         return rec_approx_data["parameters"], model_information
+    elif return_hls:
+        return (rec_approx_data["parameters"], dec_approx_data["dec_hls"])
     else:
         return rec_approx_data["parameters"]
 

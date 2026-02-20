@@ -77,6 +77,17 @@ pip install nncodec
 ```
 will install packages from  `install_requires` list in [setup.py](https://github.com/d-becking/nncodec2/blob/master/setup.py) 
 
+### Package Installation from Source
+To install NNCodec from source, we recommend creating a virtual Python environment and install via pip from the root of 
+the cloned repository:
+
+```bash
+python3 -m venv env
+source env/bin/activate
+pip install --upgrade pip
+pip install -e .
+```
+
 ## NNCodec Usage
 <div align="center">
 <img src="https://github.com/user-attachments/assets/564b9d02-a706-459a-a8bb-241d2ec4608f" width="660"/>
@@ -207,6 +218,11 @@ The [nnc_fl.py](https://github.com/d-becking/nncodec2/blob/master/example/nnc_fl
 Federated Learning with NNCodec. It imports the `NNClient` and `NNCFedAvg` classes — specialized NNC-[*Flower*](https://flower.ai) objects — that 
 are responsible for establishing and handling the compressed FL environment.
 
+#### Important: Install Flower before using, e.g., by issuing:
+```bash
+pip install -U "flwr[simulation]>=1.5"
+```
+
 The default configuration launches FL with two _ResNet-56_ clients learning the _CIFAR-100_ classification task. The _CIFAR_ dataset
 is automatically downloaded if not available under `--dataset_path` (~170MB).
 ```bash
@@ -246,6 +262,12 @@ We used Weights & Biases (wandb) for experimental results logging. Enable `--wan
 ```bash
 --wandb --wandb_key="my_key" --wandb_run_name="my_project"
 ```
+
+#### Important: Install wandb before using, e.g., by issuing:
+```bash
+pip install wandb
+```
+
 
 ## Paper results
 

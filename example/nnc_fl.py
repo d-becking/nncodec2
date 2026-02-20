@@ -83,15 +83,14 @@ import argparse
 import shutil
 import sys
 import torchvision
-import wandb
 import warnings, logging
 import flwr as fl
-from flwr.common import Context
+from flwr.common import Context, ndarrays_to_parameters
 
 from nncodec.fl import encode, NNClient, NNCFedAvg
 from nncodec import nnc
 from nncodec.framework import pytorch_model
-from nncodec.framework.applications.utils.transforms import split_datasets, torch_mdl_to_flwr_params
+from nncodec.framework.applications.utils.transforms import split_datasets
 from nncodec.framework.applications import models, datasets
 
 parser = argparse.ArgumentParser(description='NNCodec with Flower for Federated Learning')
@@ -160,6 +159,7 @@ def main():
         os.makedirs(args.results)
 
     if args.wandb:
+        import wandb
         if isinstance(args.wandb_key, str) and len(args.wandb_key) == 40:
             os.environ["WANDB_API_KEY"] = args.wandb_key
         else:
@@ -271,6 +271,12 @@ def main():
                                             criterion=nnc_mdl_executer.handle.criterion,
                                             device=nnc_mdl_executer.device,
                                             c_model=nnc_mdl_executer.model)
+
+    def torch_mdl_to_flwr_params(mdl):
+        param_dict = {k: np.float32(v.cpu().detach().numpy()) for k, v in mdl.state_dict().items()
+                      if v.shape != torch.Size([])}
+        params = [v for _, v in param_dict.items() if v.shape != ()]
+        return ndarrays_to_parameters(params)
 
     # Federated learning strategy with NNCodec compression
     strategy = NNCFedAvg(

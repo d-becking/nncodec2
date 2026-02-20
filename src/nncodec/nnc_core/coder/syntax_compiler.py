@@ -54,7 +54,7 @@ def compile_start_unit(profile):
 
     return ndu_start
 
-def compile_mps(approx_data, topology_present, general_profile_idc=0, mps_parent_signalling_enabled_flag=0):
+def compile_mps(approx_data, topology_present, general_profile_idc=0, mps_parent_signalling_enabled_flag=0, pre_signalling=0):
     mps = {}
 
     # nnr_unit_header syntax elements
@@ -77,7 +77,7 @@ def compile_mps(approx_data, topology_present, general_profile_idc=0, mps_parent
     else:
         mps["mps_quantization_method_flags"] = 0
 
-    mps["nnr_pre_flag"] = 0
+    mps["nnr_pre_flag"] = pre_signalling
     mps["base_model_id_present_flag"] = 0
 
     mps["mps_topology_indexed_reference_flag"] = 0

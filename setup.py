@@ -46,7 +46,7 @@ import setuptools
 
 # --------- Metadata ---------
 MIN_PYTHON = (3, 8)
-__version__ = '2.0.4'
+__version__ = '2.1.0'
 if sys.version_info < MIN_PYTHON:
     sys.exit(f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or later is required.")
 
@@ -160,15 +160,15 @@ setup(
         "pandas>=1.0.5",
         "opencv-python>=4.4.0.46",
         "torch>=2",
-        "torchvision>=0.16",
-        "wandb>=0.15.3",
+        "torchvision>=0.15",
         "ptflops>=0.7",
-        "matplotlib>=3.7.1",
         "torchmetrics>=0.11.4",
-        "flwr[simulation]>=1.5",
-        "hydra-core>=1.3.2",
-        "sentencepiece>=0.1.99",
-        "numpy<2"
+        "numpy<2",
+        # "sentencepiece>=0.1.99",
+        # "wandb>=0.15.3",
+        # "matplotlib>=3.7.1",
+        # "flwr[simulation]>=1.5",
+        # "hydra-core>=1.3.2",
     ],
     setup_requires=['pybind11>=2.6.2'],
     zip_safe=False,

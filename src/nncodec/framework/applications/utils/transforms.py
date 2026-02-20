@@ -50,7 +50,6 @@ import cv2 as cv
 import numpy as np
 from torchvision import transforms
 from torch.utils.data import random_split, DataLoader
-from flwr.common import ndarrays_to_parameters
 
 MDL_TRAFOS = [
     "model_transform_ImageNet_to_CIFAR100",
@@ -219,9 +218,3 @@ def split_datasets(testset, trainset, num_partitions: int, batch_size: int, num_
     testloader = DataLoader(testset, batch_size=batch_size)
 
     return trainloaders, valloaders, testloader
-
-def torch_mdl_to_flwr_params(mdl):
-    param_dict = {k: np.float32(v.cpu().detach().numpy()) for k, v in mdl.state_dict().items()
-                  if v.shape != torch.Size([])}
-    params = [v for _, v in param_dict.items() if v.shape != ()]
-    return ndarrays_to_parameters(params)

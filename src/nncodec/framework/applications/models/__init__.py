@@ -40,7 +40,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 from .ResNet_CIFAR import resnet20, resnet20_client_split, resnet20_server_split, resnet56, resnet56_client_split, resnet56_server_split
 from .tinyllama import Transformer, ModelArgs
-from .tokenizer import Tokenizer
+# from .tokenizer import Tokenizer
 
 __all__ = ['resnet20', 'resnet56', 'tinyllama']
 

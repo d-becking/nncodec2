@@ -80,7 +80,6 @@ def seeded_model_copy(model, seed=SEED_TORCH):
 
 import argparse
 import shutil
-import wandb
 from ptflops import get_model_complexity_info
 import torchvision
 import warnings
@@ -102,6 +101,7 @@ parser.add_argument("--use_dq", action="store_true", help='Enable dependent scal
 parser.add_argument('--approx_method', type=str, default='uniform',  help='Approximation method [uniform or codebook]')
 parser.add_argument('--bitdepth', type=int, default=None, help='Optional: integer-aligned bitdepth for limited precision (default: None); note: overwrites QPs.')
 parser.add_argument("--lsa", action="store_true", help='Enable Local Scaling Adaptation')
+parser.add_argument("--ioq", action="store_true", help='Enable inference-based QP optimization')
 parser.add_argument("--bnf", action="store_true", help='Enable BatchNorm Folding')
 parser.add_argument('--sparsity', type=float, default=0.0, help='Sparsity rate (default: 0.0)')
 parser.add_argument('--struct_spars_factor', type=float, default=0.0, help='Factor for structured sparsification (default: 0.9)')
@@ -145,6 +145,7 @@ def main():
         os.makedirs(args.results)
 
     if args.wandb:
+        import wandb
         if isinstance(args.wandb_key, str) and len(args.wandb_key) == 40:
             os.environ["WANDB_API_KEY"] = args.wandb_key
         else:
@@ -236,7 +237,7 @@ def main():
 
         elif args.model:
             bitstream = encode(model, vars(args), use_case_name)
-            rec_mdl_params = decode(bitstream, vars(args))
+            rec_mdl_params, hls_dec = decode(bitstream, vars(args), return_hls=True)
 
             ### evaluation of decoded and reconstructed model
             model.load_state_dict(np_to_torch(rec_mdl_params), strict=False if args.bnf else True)

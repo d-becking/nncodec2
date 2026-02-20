@@ -56,7 +56,9 @@ nncargs = {'approx_method': 'uniform',
             'sparsity': 0.0,
             'struct_spars_factor': 0.9,
             'tca': False,
+            'pre_signalling': False,
             'use_dq': True,
+            'param_opt': True,
             'qp_per_tensor': None,  # dict containing one qp value per parameter {Tensor1: -32, Tensor2: -40}
             'verbose': True,
             'bnf': False,
@@ -96,9 +98,11 @@ def encode(model, args=None, use_case_name=None, incremental=False, approx_param
             qp_per_tensor=args["qp_per_tensor"],
             use_dq=args["use_dq"],
             opt_qp=args["opt_qp"],
+            param_opt=args["param_opt"],
             int_quant_bw=args["bitdepth"],
             row_skipping=args["row_skipping"],
             tca=args["tca"],
+            pre_signalling=args["pre_signalling"],
             approx_param_base=approx_param_base,
             compress_differences=False,
             bnf=args["bnf"],
@@ -132,6 +136,8 @@ def encode(model, args=None, use_case_name=None, incremental=False, approx_param
                                               lsa=args["lsa"],
                                               bnf=args["bnf"],
                                               opt_qp=args["opt_qp"],
+                                              param_opt=args["param_opt"],
+                                              ioq=args["ioq"],
                                               int_quant_bw=args["bitdepth"],
                                               row_skipping=args["row_skipping"],
                                               tca=args["tca"],
@@ -153,7 +159,7 @@ def encode(model, args=None, use_case_name=None, incremental=False, approx_param
     return bs
 
 
-def decode(bs, args=None, model=None, approx_param_base=None):
+def decode(bs, args=None, model=None, approx_param_base=None, return_hls=False):
 
     if args == None:
         args = nncargs.copy()
@@ -162,7 +168,7 @@ def decode(bs, args=None, model=None, approx_param_base=None):
 
     update_base = approx_param_base is not None
     rec_mdl_params = nnc.decompress(bs, approx_param_base=approx_param_base, update_base_param=update_base,
-                                    reconstruct_lsa=args["lsa"], reconstruct_bnf=args["bnf"])
+                                    reconstruct_lsa=args["lsa"], reconstruct_bnf=args["bnf"], return_hls=return_hls)
 
     ### reconstruction
     # if args and args["bnf"]: ##TODO (incremental) BNF
@@ -177,5 +183,7 @@ def decode(bs, args=None, model=None, approx_param_base=None):
     #     except:
     #         rec_mdl_params = {bnf_matching[param] if param in bnf_matching
     #                           else param: rec_mdl_params[param] for param in rec_mdl_params}
-
-    return rec_mdl_params
+    if return_hls:
+        return rec_mdl_params[0], rec_mdl_params[1]
+    else:
+        return rec_mdl_params

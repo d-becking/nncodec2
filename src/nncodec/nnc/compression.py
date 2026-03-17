@@ -410,13 +410,13 @@ def compress(
         """
         enc_info["node_id_present_flag"] = 1
         enc_info["device_id"] = device_id
-        enc_info["mps_parent_signalling_enabled_flag"] = 1 if compress_differences or tca else 0
-        enc_info["parent_node_id_present_flag"] = 1 if tca else 0
+        enc_info["mps_parent_signalling_enabled_flag"] = 1 if compress_differences or pre_signalling else 0
+        enc_info["parent_node_id_present_flag"] = 1 if compress_differences else 0
         if enc_info["parent_node_id_present_flag"]:
             enc_info["parent_node_id_type"] = nnc_core.hls.ParentNodeIdType.ICNN_NDU_ID
-            enc_info["temporal_context_modeling_flag"] = 1 if tca else 0
             enc_info["parent_device_id"] = 0
 
+        enc_info["temporal_context_modeling_flag"] = 1 if tca else 0
         enc_info["row_skip_enabled_flag"] = 1 if row_skipping else 0
         enc_info["pre_signalling"] = 1 if pre_signalling else 0
         # enc_info["nnr_pt_block_enabled_flag"] = nnr_pt_block_enabled_flag

@@ -46,7 +46,7 @@ import setuptools
 
 # --------- Metadata ---------
 MIN_PYTHON = (3, 8)
-__version__ = '2.1.0'
+__version__ = '2.1.1'
 if sys.version_info < MIN_PYTHON:
     sys.exit(f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or later is required.")
 

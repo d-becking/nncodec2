@@ -312,6 +312,7 @@ def compress(
     fine_tune=False,
     row_skipping=False,
     tca=False,
+    hdsp_tool=None,
     pre_signalling=False,
     block_id_and_param_type=None,
     model=None,
@@ -321,6 +322,7 @@ def compress(
     bnf_mapping=False,
     wandb_logging=False,
     approx_param_base=None,
+    update_base_param=False,
     device_id=0,
     compress_differences=False,
     int_quant_bw=False,
@@ -333,7 +335,7 @@ def compress(
         __print_output_line("INITIALIZE APPROXIMATOR AND ENCODER...", verbose=verbose)
         if isinstance(parameter_dict, dict) and all( [isinstance(a, np.ndarray) for a in parameter_dict.values()] ) and (all([ (a.dtype==np.float32 or a.dtype==np.int32) for a in parameter_dict.values()])):
             model_parameters = parameter_dict
-            
+
             if isinstance(model, nnc_core.nnr_model.NNRModel):
                 nnc_mdl = model
             else:
@@ -355,8 +357,8 @@ def compress(
             block_id_and_param_type = None
             lsa = False
             bnf = False
-            
-    
+
+
     if model_executer:
         if lsa and not model_executer.has_tune_lsa():
             print("INFO: Tuning (training) of LSA parameters (tune_model) not implemented by model_executer! 'lsa' has been set to 'False'!")
@@ -367,11 +369,11 @@ def compress(
         if ioq and not model_executer.has_eval():
             print("INFO: Evaluation (inference on a reduced dataset) of parameters (eval_model) not implemented by model_executer! ioq' has been set to 'False'!")
             ioq = False
-                    
+
     ##INITIALIZATION
     approx_data =  nnc_core.approximator.init_approx_data(  model_parameters,
-                                                            nnc_mdl.model_info, 
-                                                            qp_density=qp_density, 
+                                                            nnc_mdl.model_info,
+                                                            qp_density=qp_density,
                                                             scan_order=scan_order
                                                          )
 
@@ -406,14 +408,15 @@ def compress(
         parent_node_id_present_flag indicates whether the NDU represents a differential update of a base neural network. 
         It shall be set to 1 for NDUs representing differential updates, and to 0 otherwise. A value
         """
-        enc_info["mps_parent_signalling_enabled_flag"] = 1 if compress_differences or tca else 0
-        enc_info["parent_node_id_present_flag"] = 1 if compress_differences or tca else 0
-        enc_info["node_id_present_flag"] = 1
-        enc_info["parent_node_id_type"] = nnc_core.hls.ParentNodeIdType.ICNN_NDU_ID
-        enc_info["parent_device_id"] = 0
         enc_info["node_id_present_flag"] = 1
         enc_info["device_id"] = device_id
-        enc_info["temporal_context_modeling_flag"] = 1 if tca else 0
+        enc_info["mps_parent_signalling_enabled_flag"] = 1 if compress_differences or tca else 0
+        enc_info["parent_node_id_present_flag"] = 1 if tca else 0
+        if enc_info["parent_node_id_present_flag"]:
+            enc_info["parent_node_id_type"] = nnc_core.hls.ParentNodeIdType.ICNN_NDU_ID
+            enc_info["temporal_context_modeling_flag"] = 1 if tca else 0
+            enc_info["parent_device_id"] = 0
+
         enc_info["row_skip_enabled_flag"] = 1 if row_skipping else 0
         enc_info["pre_signalling"] = 1 if pre_signalling else 0
         # enc_info["nnr_pt_block_enabled_flag"] = nnr_pt_block_enabled_flag
@@ -429,7 +432,7 @@ def compress(
     if ioq and not bnf_mapping:
         assert model_executer is not None, "model_executer must be available in order to run IOQ!"
         start = timer()
-        __print_output_line("PREPROCESSING, IOQ...\n", verbose=verbose) 
+        __print_output_line("PREPROCESSING, IOQ...\n", verbose=verbose)
         nnc_core.approximator.inference_based_qp_opt(
             approx_info,
             nnc_mdl.model_info,
@@ -439,13 +442,13 @@ def compress(
             verbose=verbose,
         )
         end = timer()
-        __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)   
+        __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)
 
     ##LSA and FT
     if (lsa or fine_tune) and not bnf_mapping:
         assert model_executer is not None, "model_executer must be available in order to run LSA and/or FT!"
         start = timer()
-        __print_output_line("PREPROCESSING, LSA/FT...\n", verbose=verbose) 
+        __print_output_line("PREPROCESSING, LSA/FT...\n", verbose=verbose)
         nnc_core.approximator.run_ft_and_lsa(
             nnc_mdl.model_info,
             approx_data,
@@ -459,11 +462,11 @@ def compress(
             wandb_logging
         )
         end = timer()
-        __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)  
+        __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)
     ##BNF
     if bnf or bnf_mapping:
         start = timer()
-        __print_output_line("PREPROCESSING, BNF...", verbose=verbose)    
+        __print_output_line("PREPROCESSING, BNF...", verbose=verbose)
         nnc_core.approximator.fold_bn(nnc_mdl.model_info, approx_data, ApproxInfoO, bnf_mapping=bnf_mapping)
         end = timer()
         __print_output_line("DONE in {:.4f} s\n".format(end-start), verbose=verbose)
@@ -471,7 +474,7 @@ def compress(
             return nnc_mdl.model_info
 
     #####QUANTIZATION AND ENCODING
-    start = timer() 
+    start = timer()
     __print_output_line("APPROXIMATING WITH METHOD {}...".format(approx_info["approx_method"]), verbose=verbose)
     approx_data_enc = nnc_core.approximator.approx( approx_info,
                                                 nnc_mdl.model_info,
@@ -490,15 +493,20 @@ def compress(
     bitstream, _ = nnc_core.coder.encode(enc_info=enc_info,
                                          model_info=nnc_mdl.model_info,
                                          approx_data=approx_data_enc,
-                                         approx_param_base=approx_param_base
+                                         approx_param_base=approx_param_base,
+                                         update_base_param=update_base_param,
+                                         tool_if=hdsp_tool
                                          )
     end = timer()
     __print_output_line("DONE in {:.4f} s\n".format( end-start ), verbose=verbose)
 
     original_size = nnc_mdl.model_info["original_size"]
 
-    __print_output_line("COMPRESSED FROM {} BYTES TO {} BYTES ({:.2f} KB, {:.2f} MB, COMPRESSION RATIO: {:.2f} %) in {:.4f} s\n".format(original_size, len(bitstream), len(bitstream)/1000.0, len(bitstream)/1000000.0, len(bitstream)/original_size*100, end-start_overall), verbose=True)
-    
+    __print_output_line("COMPRESSED FROM {} BYTES TO {} BYTES ({:.2f} KB, {:.2f} MB, COMPRESSION RATIO: {:.2f} %) in {:.4f} s\n".format(original_size, len(bitstream), len(bitstream)/1000.0, len(bitstream)/1000000.0, len(bitstream)/original_size*100, end-start_overall), verbose=verbose)
+
+    if hdsp_tool is not None:
+        hdsp_tool.add_data_to_hist(approx_data_enc['parameters'])
+
     if bitstream_path is not None:
         with open( bitstream_path, "wb" ) as br_file:
             br_file.write( bitstream )
@@ -507,8 +515,8 @@ def compress(
         return bitstream
 
 
-def decompress( bitstream_or_path, 
-                block_id_and_param_type=None, 
+def decompress( bitstream_or_path,
+                block_id_and_param_type=None,
                 return_model_information=False,
                 return_hls=False,
                 verbose=False,
@@ -516,6 +524,7 @@ def decompress( bitstream_or_path,
                 reconstruct_bnf=False,
                 approx_param_base=None,
                 update_base_param=False,
+                hdsp_tool=None,
                 internal_states_path=None,
                 ):
 
@@ -530,7 +539,7 @@ def decompress( bitstream_or_path,
                                                   "mps_pruning_flag" : {}, "lps_pruning_flag" : {},
                                                   "mps_unification_flag" : {}, "lps_unification_flag" : {},
                                                   "mps_decomposition_performance_map_flag" : {}, "lps_decomposition_performance_map_flag" : {},
-                                                } 
+                                                }
                       }
 
     model_information = { 'topology_storage_format' : None,
@@ -567,7 +576,10 @@ def decompress( bitstream_or_path,
 
     dec_approx_data = nnc_core.coder.decode(bitstream, dec_model_info, hls_stats=hls_bytes, oob_dict=oob_dict,
                                             approx_param_base=approx_param_base, update_base_param=update_base_param,
-                                            return_hls=return_hls)
+                                            return_hls=return_hls, tool_if=hdsp_tool)
+
+    if hdsp_tool is not None and return_hls and dec_approx_data["dec_hls"]["mps"]["mps_parent_signalling_enabled_flag"]:
+        hdsp_tool.add_data_to_hist(dec_approx_data["parameters"])
 
     if internal_states_path and approx_param_base["parameters"]:
         np.savez(f"{_int_states_path}", **loaded_internal_states)

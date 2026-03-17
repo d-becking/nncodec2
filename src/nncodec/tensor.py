@@ -64,10 +64,10 @@ nncargs = {'approx_method': 'uniform',
             'use_dq': True,
             'param_opt': True,
             'qp_per_tensor': None,  # dict containing one qp value per parameter {Tensor1: -32, Tensor2: -40}
-            'verbose': True
+            'verbose': False
            }
 
-def encode(tensor, args=None, approx_param_base=None, quantize_only=False):
+def encode(tensor, args=None, approx_param_base=None, hdsp_tool=None, quantize_only=False):
 
     if args == None:
         args = nncargs.copy()
@@ -95,6 +95,7 @@ def encode(tensor, args=None, approx_param_base=None, quantize_only=False):
 
     bs_path = f'{args["results"]}/{args["job_identifier"]}_{"qp_" + str(args["qp"]) if args["bitdepth"] is None else str(args["bitdepth"]) + "bit"}_bitstream.nnc'
 
+    update_base = approx_param_base is not None
     bs = nnc.compress(nnc_tensor,
                       bitstream_path=bs_path,
                       codebook_mode=2 if args["approx_method"] == 'codebook' else 0,
@@ -105,20 +106,23 @@ def encode(tensor, args=None, approx_param_base=None, quantize_only=False):
                       param_opt=args["param_opt"],
                       row_skipping=args["row_skipping"],
                       tca=args["tca"],
+                      hdsp_tool=hdsp_tool,
                       pre_signalling=args["pre_signalling"],
                       verbose=args["verbose"],
                       return_bitstream=True,
                       approx_param_base=approx_param_base,
+                      update_base_param=update_base,
                       device_id=0,
-                      compress_differences=False,
+                      compress_differences=args["compress_differences"],
                       int_quant_bw=args["bitdepth"],
                       quantize_only=quantize_only
                       )
     return bs
 
-def decode(bitstream, tensor_id='0', approx_param_base=None, return_hls=False):
+def decode(bitstream, tensor_id='0', approx_param_base=None, hdsp_tool=None, return_hls=False):
     update_base = approx_param_base is not None
-    dec_nnc_tensor = nnc.decompress(bitstream, approx_param_base=approx_param_base, update_base_param=update_base, return_hls=return_hls)
+    dec_nnc_tensor = nnc.decompress(bitstream, approx_param_base=approx_param_base, update_base_param=update_base,
+                                    hdsp_tool=hdsp_tool, return_hls=return_hls)
 
     if return_hls:
         return dec_nnc_tensor[0][tensor_id], dec_nnc_tensor[1]

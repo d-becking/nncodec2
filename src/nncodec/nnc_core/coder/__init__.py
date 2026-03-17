@@ -211,7 +211,7 @@ def __get_topology_elem_id_order(compressed_parameter_types): ## the FDIS specif
     return id_list
 
     
-def encode(enc_info, model_info, approx_data, approx_param_base=None, tool_if=None):
+def encode(enc_info, model_info, approx_data, approx_param_base=None, update_base_param=False, tool_if=None):
     ndu_start = syntax_compiler.compile_start_unit(enc_info.get("general_profile_idc", 0))
     bs = hls.encode_nnr_unit_with_size_dummy(ndu_start)
     bs, _ = hls.update_nnr_unit_size(bs)
@@ -339,6 +339,27 @@ def encode(enc_info, model_info, approx_data, approx_param_base=None, tool_if=No
                         )
                     if epListPart.size > 0:
                         epList = np.concatenate([epList, epListPart])
+
+
+            if approx_param_base is not None and update_base_param:
+                for param in params:
+                    if param not in approx_param_base["put_node_depth"]:
+                        approx_param_base["put_node_depth"][
+                            param] = 1  # The first node is already the first child node as the base model is the root node
+                    else:
+                        approx_param_base["put_node_depth"][param] += 1
+                    if not approx_param_base["device_id"]:
+                        approx_param_base["device_id"] = ndu["device_id"]
+                    else:
+                        assert approx_param_base["device_id"] == ndu["device_id"], "Unexpected device_id!"
+                    if param not in approx_param_base["parameter_id"]:
+                        approx_param_base["parameter_id"][param] = ndu["parameter_id"]
+                    else:
+                        assert approx_param_base["parameter_id"][param] == ndu["parameter_id"], "Unexpected parameter_id!"
+
+                    if enc_info["temporal_context_modeling_flag"]:
+                        approx_param_base["parameters"][param] = copy.deepcopy(approx_data["parameters"][param])
+
 
             ndu = syntax_compiler.compile_ndu_eps( ndu, epList )
 
@@ -568,9 +589,9 @@ def __decode_nnr_ndu_unit(nnr_gen, reader, bitstream, ndu, mps, lps, tpl, ndu_st
                 id_list_counter += 1
                 dims = ndu["tensor_dimensions"]
                 params.append((parType, param, dims))
-        
+
         assert id_list_counter == ndu["count_topology_elements_minus2"] + 2, "Number of decoded topology elements does not match count_topology_elements_minus2 + 2!"
-    
+
     for par_type, param, dims in params:
         if param.endswith("_G") or param.endswith("_H"):
             param = param[:-2]
@@ -610,7 +631,7 @@ def __decode_nnr_ndu_unit(nnr_gen, reader, bitstream, ndu, mps, lps, tpl, ndu_st
                     approx_data["approx_method"][param]         = 'codebook'
                     approx_data["codebooks"][param]             = ndu["codebook__"]
                     approx_data["codebook_zero_offsets"][param] = ndu["CbZeroOffset__"]
-                    approx_data["codebooks_egk"][param]         = ndu["codebook_egk__"]       
+                    approx_data["codebooks_egk"][param]         = ndu["codebook_egk__"]
                 elif param.endswith("_H"):
                     approx_data["approx_method"][param]         = 'codebook'
                     approx_data["codebooks"][param]             = ndu["codebook__dc"]
@@ -621,18 +642,18 @@ def __decode_nnr_ndu_unit(nnr_gen, reader, bitstream, ndu, mps, lps, tpl, ndu_st
                   (ndu["nnr_compressed_data_unit_payload_type"] == hls.CompressedDataUnitPayloadType.NNR_PT_BLOCK) and
                   (ndu["codebook_present_flag"] == 1) and
                   (par_type.endswith("weight"))
-            ): 
+            ):
                 approx_data["approx_method"][param]         = 'codebook'
                 approx_data["codebooks"][param]             = ndu["codebook__"]
-                approx_data["codebook_zero_offsets"][param] = ndu["CbZeroOffset__"] 
-                approx_data["codebooks_egk"][param]         = ndu["codebook_egk__"]                       
+                approx_data["codebook_zero_offsets"][param] = ndu["CbZeroOffset__"]
+                approx_data["codebooks_egk"][param]         = ndu["codebook_egk__"]
             elif(
                  (ndu["nnr_compressed_data_unit_payload_type"] != hls.CompressedDataUnitPayloadType.NNR_PT_BLOCK) and
                  (ndu.get("codebook_present_flag") == 1)
-            ): 
+            ):
                 approx_data["approx_method"][param]         = 'codebook'
                 approx_data["codebooks"][param]             = ndu["codebook__"]
-                approx_data["codebook_zero_offsets"][param] = ndu["CbZeroOffset__"] 
+                approx_data["codebook_zero_offsets"][param] = ndu["CbZeroOffset__"]
                 approx_data["codebooks_egk"][param]         = ndu["codebook_egk__"]
             elif ndu["nnr_compressed_data_unit_payload_type"] == hls.CompressedDataUnitPayloadType.NNR_PT_INT :
                 approx_data["approx_method"][param] = 'skip'
@@ -645,12 +666,12 @@ def __decode_nnr_ndu_unit(nnr_gen, reader, bitstream, ndu, mps, lps, tpl, ndu_st
                 if ndu['scan_order'] > 0:
                     tensorDimensions   = dims
                     blockDim           = 4 << ndu['scan_order']
-                    
+
                     if ndu["compressed_parameter_types"] & hls.BlockParameterTypes.NNR_CPT_DC != 0:
                         hNumberOfColumns  = np.int32(np.prod( tensorDimensions )/ndu["g_number_of_rows"])
-                        tensorDimensionsG = [ndu["g_number_of_rows"], ndu["decomposition_rank"]] 
+                        tensorDimensionsG = [ndu["g_number_of_rows"], ndu["decomposition_rank"]]
                         tensorDimensionsH = [ndu["decomposition_rank"], hNumberOfColumns]
-                    
+
                     if (
                         (ndu["nnr_compressed_data_unit_payload_type"] != hls.CompressedDataUnitPayloadType.NNR_PT_BLOCK) and
                         (ndu["compressed_parameter_types"] & hls.BlockParameterTypes.NNR_CPT_DC != 0)
@@ -682,7 +703,7 @@ def __decode_nnr_ndu_unit(nnr_gen, reader, bitstream, ndu, mps, lps, tpl, ndu_st
 
             if ndu["compressed_parameter_types"] & hls.BlockParameterTypes.NNR_CPT_DC != 0:
                 hNumberOfColumns  = np.int32(np.prod( tensorDimensions )/ndu["g_number_of_rows"])
-                tensorDimensionsG = [ndu["g_number_of_rows"], ndu["decomposition_rank"]] 
+                tensorDimensionsG = [ndu["g_number_of_rows"], ndu["decomposition_rank"]]
                 tensorDimensionsH = [ndu["decomposition_rank"], hNumberOfColumns]
 
             if param.endswith("_G"):
@@ -736,7 +757,7 @@ def __decode_nnr_ndu_unit(nnr_gen, reader, bitstream, ndu, mps, lps, tpl, ndu_st
             model_info["performance_map_flags"]["lps_pruning_flag"][param]                       = 0
             model_info["performance_map_flags"]["lps_unification_flag"][param]                   = 0
             model_info["performance_map_flags"]["lps_decomposition_performance_map_flag"][param] = 0
-        
+
         if mps is not None:
             model_info["performance_map_flags"]["mps_sparsification_flag"][param]                = mps["mps_sparsification_flag"]
             model_info["performance_map_flags"]["mps_pruning_flag"][param]                       = mps["mps_pruning_flag"]
@@ -747,7 +768,7 @@ def __decode_nnr_ndu_unit(nnr_gen, reader, bitstream, ndu, mps, lps, tpl, ndu_st
             model_info["performance_map_flags"]["mps_pruning_flag"][param]                       = 0
             model_info["performance_map_flags"]["mps_unification_flag"][param]                   = 0
             model_info["performance_map_flags"]["mps_decomposition_performance_map_flag"][param] = 0
-        
+
     if decoder_initialized:
         bytes_ndu += decoder.finish()
     assert bytes_ndu == ndu["nnr_unit_size"], "nnr_unit_size doesn't match the number of decoded bytes."
@@ -760,13 +781,13 @@ def __decode_nnr_unit(reader, bitstream, bytes_read, ndu_start, mps, lps, tpl, m
     ndu = {}
     g = hls.decode_nnr_unit_size_and_header(reader, ndu)
     next(g) # start decoding of the nnr unit size and header and stop at nnr unit type
-    
+
     if decoded_dc_tensorG:
         assert ndu["nnr_unit_type"] == hls.NnrUnitType.NNR_NDU, "Preceding NDU contained a decomposed tensor G! This NDU must be of type NNR_NDU!"
-    
+
     if ndu["nnr_unit_type"] == hls.NnrUnitType.NNR_MPS:
         assert mps is None, "NNR_MPS Unit already decoded! There shall be only one NNR_MPS in the bitstream!"
-        assert not nnr_ndu_decoded, "An NNR_MPS shall precede any NNR_NDU, but an NNR_NDU has already been decoded!"       
+        assert not nnr_ndu_decoded, "An NNR_MPS shall precede any NNR_NDU, but an NNR_NDU has already been decoded!"
         bytes_ndu = __decode_nnr_mps_unit( g, reader, ndu, ndu_start, hls_stats )
         mps = ndu
         if "mps_qp_density" in mps:
@@ -875,7 +896,7 @@ def __decode_nnr_unit(reader, bitstream, bytes_read, ndu_start, mps, lps, tpl, m
 
     elif ndu["nnr_unit_type"] == hls.NnrUnitType.NNR_AGG:
         raise NotImplementedError("Decoding of NNR_AGG Units not yet implemented!")
-        
+
     elif ndu["nnr_unit_type"] == hls.NnrUnitType.NNR_NDU:
         bytes_ndu, decoded_dc_tensorG = __decode_nnr_ndu_unit(g, reader, bitstream, ndu, mps, lps, tpl, ndu_start,
                                                               model_info, approx_data, bytes_read, decoded_dc_tensorG,

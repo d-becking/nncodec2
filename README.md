@@ -22,7 +22,7 @@
 
 ## Information
 
-This repository hosts a beta version of NNCodec 2.0, which incorporates new compression tools for incremental neural 
+This repository hosts a beta version of NNCodec 2, which incorporates new compression tools for incremental neural 
 network data, as introduced in the second edition of the NNC standard. It also supports coding 
 "Tensors in AI-based Media Processing" (TAIMP), addressing recent MPEG requirements for coding individual tensors rather 
 than entire neural networks or differential updates to a base neural network.
@@ -71,7 +71,7 @@ python example/tensor_coding.py
 
 ### Package Installation from PyPI
 
-NNCodec 2.0 supports pip installation:
+NNCodec 2 supports pip installation via [Python Package Index](https://pypi.org/project/nncodec)
 ```bash
 pip install nncodec
 ```
@@ -93,7 +93,7 @@ pip install -e .
 <img src="https://github.com/user-attachments/assets/564b9d02-a706-459a-a8bb-241d2ec4608f" width="660"/>
 </div>
 
-NNCodec 2.0, as depicted above, includes three main pipelines:
+NNCodec 2, as depicted above, includes three main pipelines:
 - One for tensorial data in AI-based media processing (e.g., function coefficients, feature maps, ...),
   ```python
   from nncodec.tensor import encode, decode

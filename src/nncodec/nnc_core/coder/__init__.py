@@ -357,8 +357,8 @@ def encode(enc_info, model_info, approx_data, approx_param_base=None, update_bas
                     else:
                         assert approx_param_base["parameter_id"][param] == ndu["parameter_id"], "Unexpected parameter_id!"
 
-                    if enc_info["temporal_context_modeling_flag"]:
-                        approx_param_base["parameters"][param] = copy.deepcopy(approx_data["parameters"][param])
+                    # if enc_info["temporal_context_modeling_flag"]:
+                    approx_param_base["parameters"][param] = copy.deepcopy(approx_data["parameters"][param])
 
 
             ndu = syntax_compiler.compile_ndu_eps( ndu, epList )
